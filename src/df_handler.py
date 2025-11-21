@@ -1,12 +1,32 @@
 import pandas as pd
 import numpy as np
 
-def stringToList(str):
-    aux = str.split(",")
+def stringToList(valor):
+    # 1. Proteção contra NaNs (floats) e valores não-texto
+    if not isinstance(valor, str):
+        return []
+    
+    # 2. Limpeza extra: Remove aspas que podem vir do CSV
+    valor_limpo = valor.replace('"', '').replace("'", "")
+    
+    # 3. Divide pela vírgula
+    aux = valor_limpo.split(",")
+    
     l = []
     for i in aux:
-        item = int(i)
-        l.append(item)
+        try:
+            # Remove espaços em branco ao redor (ex: " 45 ")
+            item_limpo = i.strip()
+            
+            # Se sobrou algo depois de limpar...
+            if item_limpo:
+                # TENTA converter. Se falhar (ex: for uma vírgula solta), vai pro except
+                item = int(item_limpo)
+                l.append(item)
+        except ValueError:
+            # Se der erro na conversão, apenas ignora e continua o loop
+            continue
+            
     return l
 
 def criar_colunas_auxiliares(df):

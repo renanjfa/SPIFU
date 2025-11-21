@@ -1,27 +1,40 @@
 import pandas as pd
-from sqlalchemy import create_engine
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
-import joblib  # <-- Importe o joblib
-import import_db as imp
+import joblib
+import import_db as imp # Importa o script que acabamos de editar
 
 print("Iniciando script de treinamento...")
 
-df = imp.import_banco_de_dados()
-print(df)
+# 1. Carrega os dados usando a função do import_db
+df = imp.get_data()
 
-# 
+print("Colunas disponíveis:", df.columns)
 
-df_processado = pd.get_dummies(df.drop(['id', 'data'], axis=1, errors='ignore'), drop_first=True)
+# 2. Pré-processamento
+# O Pandas get_dummies vai transformar texto restante em números
+df_processado = pd.get_dummies(df.drop(['data'], axis=1, errors='ignore'), drop_first=True)
+
+# 3. Definir o Alvo (CORREÇÃO IMPORTANTE AQUI)
+# Você tem 'quantidade_almoco' e 'quantidade_jantar'. 
+# Vamos tentar prever o ALMOÇO primeiro.
+ALVO = 'quantidade_almoco' 
+
+# Se quiser prever o total, descomente a linha abaixo:
+# df_processado['total_pessoas'] = df['quantidade_almoco'] + df['quantidade_jantar']
+# ALVO = 'total_pessoas'
 
 try:
-    X = df_processado.drop('quantidade_pessoas', axis=1)
-    y = df_processado['quantidade_pessoas']
-except KeyError:
-    print("Erro: Coluna 'quantidade_pessoas' não encontrada.")
-    print("Colunas disponíveis após o processamento:", df_processado.columns)
+    # Removemos o alvo e a outra contagem (jantar) para não "dar a resposta" pro modelo
+    X = df_processado.drop(['quantidade_almoco', 'quantidade_jantar'], axis=1, errors='ignore')
+    y = df_processado[ALVO]
+except KeyError as e:
+    print(f"Erro: Coluna {e} não encontrada.")
     exit()
+
+# Remover linhas com valores vazios (NaN) que podem ter sido gerados
+X = X.fillna(0)
 
 print("Dividindo dados e iniciando o treinamento...")
 X_treino, X_teste, y_treino, y_teste = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -31,12 +44,11 @@ modelo.fit(X_treino, y_treino)
 
 previsoes = modelo.predict(X_teste)
 mae = mean_absolute_error(y_teste, previsoes)
+
 print(f"\nTreinamento concluído!")
-print(f"O Erro Médio Absoluto (MAE) deste modelo é: {mae:.2f} pessoas")
+print(f"O Erro Médio Absoluto (MAE) é: {mae:.2f}")
 
+# Salvar
 joblib.dump(modelo, 'modelo_ru.joblib')
-
 joblib.dump(X.columns, 'colunas_modelo.joblib')
-
-print("\nModelo e colunas salvos com sucesso!")
-print("Arquivos: 'modelo_ru.joblib' e 'colunas_modelo.joblib'")
+print("Modelo salvo com sucesso!")
