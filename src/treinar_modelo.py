@@ -3,52 +3,41 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
 import joblib
-import import_db as imp # Importa o script que acabamos de editar
+import import_db as imp
 
-print("Iniciando script de treinamento...")
+print("--- TREINAMENTO SIMPLIFICADO (PRATO + DIA) ---")
 
-# 1. Carrega os dados usando a função do import_db
 df = imp.get_data()
 
-print("Colunas disponíveis:", df.columns)
+df['data'] = pd.to_datetime(df['data'])
+df['dia_da_semana'] = df['data'].dt.day_name() 
 
-# 2. Pré-processamento
-# O Pandas get_dummies vai transformar texto restante em números
-df_processado = pd.get_dummies(df.drop(['data'], axis=1, errors='ignore'), drop_first=True)
+print(f"Base carregada: {len(df)} registros.")
 
-# 3. Definir o Alvo (CORREÇÃO IMPORTANTE AQUI)
-# Você tem 'quantidade_almoco' e 'quantidade_jantar'. 
-# Vamos tentar prever o ALMOÇO primeiro.
-ALVO = 'quantidade_almoco' 
+def treinar_especifico(df_completo, nome_alvo, nome_arquivo):
+    print(f"\n>>> TREINANDO: {nome_alvo.upper()} <<<")
 
-# Se quiser prever o total, descomente a linha abaixo:
-# df_processado['total_pessoas'] = df['quantidade_almoco'] + df['quantidade_jantar']
-# ALVO = 'total_pessoas'
+    cols_features = ['dia_da_semana'] + [c for c in df_completo.columns if 'prato_principal' in c]
+    
+    print(f"Usando apenas as colunas: {cols_features}")
+    
+    df_focado = df_completo[cols_features].copy()
+    
+    df_processado = pd.get_dummies(df_focado, drop_first=True)
+    
+    X = df_processado
+    y = df_completo[nome_alvo].fillna(0) 
+    
+    X_treino, X_teste, y_treino, y_teste = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    modelo = RandomForestRegressor(n_estimators=100, random_state=42)
+    modelo.fit(X_treino, y_treino)
+    
+    mae = mean_absolute_error(y_teste, modelo.predict(X_teste))
+    print(f"Erro Médio (MAE): {mae:.2f}")
+    
+    joblib.dump(modelo, f'{nome_arquivo}.joblib')
+    joblib.dump(X.columns, f'colunas_{nome_arquivo}.joblib')
 
-try:
-    # Removemos o alvo e a outra contagem (jantar) para não "dar a resposta" pro modelo
-    X = df_processado.drop(['quantidade_almoco', 'quantidade_jantar'], axis=1, errors='ignore')
-    y = df_processado[ALVO]
-except KeyError as e:
-    print(f"Erro: Coluna {e} não encontrada.")
-    exit()
-
-# Remover linhas com valores vazios (NaN) que podem ter sido gerados
-X = X.fillna(0)
-
-print("Dividindo dados e iniciando o treinamento...")
-X_treino, X_teste, y_treino, y_teste = train_test_split(X, y, test_size=0.2, random_state=42)
-
-modelo = RandomForestRegressor(n_estimators=100, random_state=42)
-modelo.fit(X_treino, y_treino)
-
-previsoes = modelo.predict(X_teste)
-mae = mean_absolute_error(y_teste, previsoes)
-
-print(f"\nTreinamento concluído!")
-print(f"O Erro Médio Absoluto (MAE) é: {mae:.2f}")
-
-# Salvar
-joblib.dump(modelo, 'modelo_ru.joblib')
-joblib.dump(X.columns, 'colunas_modelo.joblib')
-print("Modelo salvo com sucesso!")
+treinar_especifico(df, 'quantidade_almoco', 'modelo_almoco')
+treinar_especifico(df, 'quantidade_jantar', 'modelo_jantar')
