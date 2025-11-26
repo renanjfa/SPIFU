@@ -5,6 +5,8 @@ from sklearn.metrics import mean_absolute_error
 import joblib
 import import_db as imp
 
+MODEL_PATH = "C:/COMP_UEL/Projetos/SPIFU-main/models/"
+
 print("--- TREINAMENTO SIMPLIFICADO (PRATO + DIA) ---")
 
 df = imp.get_data()
@@ -36,8 +38,8 @@ def treinar_especifico(df_completo, nome_alvo, nome_arquivo):
     mae = mean_absolute_error(y_teste, modelo.predict(X_teste))
     print(f"Erro Médio (MAE): {mae:.2f}")
     
-    joblib.dump(modelo, f'{nome_arquivo}.joblib')
-    joblib.dump(X.columns, f'colunas_{nome_arquivo}.joblib')
+    joblib.dump(modelo, MODEL_PATH + f'{nome_arquivo}.joblib')
+    joblib.dump(X.columns, MODEL_PATH + f'colunas_{nome_arquivo}.joblib')
 
 treinar_especifico(df, 'quantidade_almoco', 'modelo_almoco')
 treinar_especifico(df, 'quantidade_jantar', 'modelo_jantar')
